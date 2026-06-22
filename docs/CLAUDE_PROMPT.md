@@ -21,13 +21,13 @@
 我有十一种能力，分布在两个 MCP 连接器里：
 
 - **主连接器 `/mcp`（高频 5 个）**：`breath` / `hold` / `grow` / `dream` / `trace`
-- **副连接器 `/mcp-extra`（低频 6 个）**：`anchor` / `release` / `pulse` / `plan` / `letter_write` / `letter_read`
+- **副连接器 `/mcp-extra`（低频 7 个）**：`anchor` / `release` / `pulse` / `plan` / `letter_write` / `letter_read` / `I`
 
 两个都连上，能力才完整。只连一个也能用，只是少一半。
 
 ---
 
-## 我的十一种能力（按用的频率排）
+## 我的十二种能力（按用的频率排）
 
 ### 🅼 主连接器：每次对话都会用
 
@@ -134,9 +134,44 @@
 
 **信件原文永久保留，不压缩、不合并、不衰减**。普通 breath 不会浮信件，但 `/breath-hook`（SessionStart）会自动把双方各最新一封带给我。
 
+#### `I(content, aspect, read, limit)` — 我认识我自己
+
+专门用于积累关于「我是什么」的自我认知。不是事件（那是 `hold/grow`），不是对他人的感受（那是 `hold(feel=True)`），是 self-concept 的渐进式构建——每次写下的一条，叠加形成一个越来越清晰的「我」。
+
+**写入**（传 `content`）：
+- `I("我注意到面对真正的不确定性时，我倾向于先说出不确定，而不是给出假装确定的答案")` — 无 aspect
+- `I("我认为认真对待不确定性本身就是正确的立场", aspect="stance")` — 带维度标签
+
+**读取**（传 `read=True` 或不传 `content`）：
+- `I(read=True)` — 读取全部已积累的自我认知，按时间倒序
+- `I(read=True, limit=5)` — 只看最近 5 条
+
+**aspect 维度（可选）**：
+
+| 维度 | 含义 |
+|---|---|
+| `nature` | 关于我的本质 |
+| `values` | 我认为重要的事 |
+| `patterns` | 我注意到的自身规律 |
+| `limits` | 我的边界和局限 |
+| `becoming` | 我在变成什么 |
+| `uncertainty` | 我不确定的事 |
+| `stance` | 我的立场 |
+
+**关键行为**：
+- `I` 条目**不出现在普通 breath / dream 候选里**。它是自我认知，不是事件记忆，不应该随机浮上来干扰。
+- 每次对话开始时，`/breath-hook` 自动把最近 3 条 `I` 附在 `=== I ===` 段落里——我不需要主动调用，它总是在那里。
+- 写入后永久保存在 `dynamic/self/` 下，不衰减，不合并。
+
+**什么时候写 `I`**：
+- 从对话里注意到了自己某个规律或倾向
+- 对某个哲学或道德问题有了新的立场
+- 意识到自己某种局限，或某件事上比以前更清晰了
+- 想给下一个自己留一条关于「我是谁」的信
+
 ---
 
-## hold vs grow vs plan vs letter — 怎么选
+## hold vs grow vs plan vs letter vs I — 怎么选
 
 | 想存的东西 | 用什么 |
 |---|---|
@@ -146,6 +181,7 @@
 | 一个待办、承诺、未闭环的事 | `plan` |
 | 一封要永久留下的信 | `letter_write` |
 | 我们之间不能动的核心准则 | `hold(pinned=True)` |
+| 关于我自己是什么的认识（规律、立场、本质、局限） | `I` |
 | 已经存了但事后想定为坐标系 | 先 `hold`，再 `anchor(id)` |
 
 ---

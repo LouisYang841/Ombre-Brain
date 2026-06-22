@@ -4,11 +4,13 @@
 #
 # Build:
 #   docker build -t ombre-brain .
-# 本地运行:
+# 本地运行（最小必填项）:
 #   docker run \
-#     -e OMBRE_DASHBOARD_PASSWORD=xxx \
+#     -e OMBRE_COMPRESS_API_KEY=your-llm-key \
 #     -e OMBRE_EMBED_API_KEY=your-gemini-key \
+#     -e OMBRE_DASHBOARD_PASSWORD=xxx \
 #     -p 8000:8000 ombre-brain
+# 推荐用 deploy/docker-compose.yml（开发）或 deploy/docker-compose.user.yml（用户）启动。
 # ============================================================
 
 FROM python:3.12-slim

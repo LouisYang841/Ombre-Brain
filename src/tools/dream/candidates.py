@@ -31,7 +31,7 @@ DREAM_MAX_CANDIDATES = 40
 def collect_candidates(all_buckets: list, window_hours: int) -> list:
     candidates = [
         b for b in all_buckets
-        if b["metadata"].get("type") not in ("permanent", "feel", "plan", "letter")
+        if b["metadata"].get("type") not in ("permanent", "feel", "plan", "letter", "self")
         and not b["metadata"].get("pinned", False)
         and not b["metadata"].get("protected", False)
     ]

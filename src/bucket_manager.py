@@ -81,6 +81,11 @@ from rapidfuzz import fuzz
 
 from utils import generate_bucket_id, sanitize_name, safe_path, now_iso
 
+try:
+    from bm25_index import BM25Index as _BM25Index
+except ImportError:
+    _BM25Index = None  # type: ignore
+
 logger = logging.getLogger("ombre_brain.bucket")
 
 
@@ -201,9 +206,15 @@ class BucketManager:
         # semantic: embedding 余弦相似度（仅 embedding 启用时生效）
         self.w_touch = scoring.get("touch_weight", 1.0)
         self.w_semantic = scoring.get("semantic_weight", 2.5)
+        # BM25: TF-IDF 加权关键词匹配（rank_bm25+jieba，软依赖）
+        self.w_bm25 = scoring.get("bm25_weight", 1.5)
 
         # --- Optional embedding engine for pre-filtering / 可选 embedding 引擎，用于预筛候选集 ---
         self.embedding_engine = embedding_engine
+
+        # BM25 稀疏索引（写操作后脏标记，search() 时懒重建）
+        self._bm25: "_BM25Index | None" = _BM25Index() if _BM25Index is not None else None
+        self._bm25_dirty: bool = True
 
     # ---------------------------------------------------------
     # Internal helpers【代码多复用、不作为公共 API】
@@ -253,6 +264,10 @@ class BucketManager:
             await self.embedding_engine.generate_and_store(bucket_id, content)
         except Exception as e:
             logger.warning(f"sync embedding failed for {bucket_id}: {e}")
+
+    def _invalidate_bm25(self) -> None:
+        """写操作后调用，标记 BM25 索引需要重建。search() 时懒触发。"""
+        self._bm25_dirty = True
 
     # ---------------------------------------------------------
     # Create a new bucket
@@ -467,6 +482,7 @@ class BucketManager:
         # 这里把同步内聚到 bucket_manager，调用方无需关心；失败仅 warning，桶照样存在
         # （embedding 失败属于允许降级，rule.md §1.5）。
         await self._sync_embedding(bucket_id, linked_content)
+        self._invalidate_bm25()
 
         return bucket_id
 
@@ -650,6 +666,7 @@ class BucketManager:
         # 这里把刷新内聚进来，重复调用是幂等的（INSERT OR REPLACE），调用方多调一次也无害。
         if "content" in kwargs:
             await self._sync_embedding(bucket_id, post.content or "")
+        self._invalidate_bm25()
 
         return True
 
@@ -705,6 +722,7 @@ class BucketManager:
             except Exception as e:
                 logger.warning(f"delete embedding failed for {bucket_id}: {e}")
 
+        self._invalidate_bm25()
         logger.info(f"Soft-deleted bucket (moved to archive) / 软删除记忆桶: {bucket_id}")
         return True
 
@@ -860,6 +878,13 @@ class BucketManager:
             except Exception as e:
                 logger.warning(f"Embedding score failed, using fuzzy only / embedding 评分失败: {e}")
 
+        # --- BM25 懒重建 ---
+        # all_buckets 已在上方加载，直接复用；写操作后脏标记触发重建
+        if self._bm25 is not None and self._bm25_dirty:
+            self._bm25.build(all_buckets)
+            self._bm25_dirty = False
+        bm25_scores: dict[str, float] = self._bm25.score(query) if self._bm25 is not None else {}
+
         # --- Layer 2: weighted multi-dim ranking ---
         # --- 第二层：多维加权精排 ---
         scored = []
@@ -902,6 +927,10 @@ class BucketManager:
                     semantic_score = vector_scores.get(bucket["id"], 0.0)
                     total += semantic_score * self.w_semantic
                     weight_sum += self.w_semantic
+                # Dim 7: BM25 TF-IDF 关键词分（rank_bm25+jieba，软依赖，缺包时 bm25_scores={}）
+                if bm25_scores:
+                    total += bm25_scores.get(bucket["id"], 0.0) * self.w_bm25
+                    weight_sum += self.w_bm25
                 # Normalize to 0~100 for readability
                 normalized = (total / weight_sum) * 100 if weight_sum > 0 else 0
 
@@ -1207,6 +1236,7 @@ class BucketManager:
             )
             return False
 
+        self._invalidate_bm25()
         logger.info(f"Archived bucket / 归档记忆桶: {bucket_id} → archive/{primary_domain}/")
         return True
 

@@ -66,6 +66,7 @@ from tools import trace as _t_trace
 from tools import anchor as _t_anchor
 from tools import plan as _t_plan
 from tools import dream as _t_dream
+from tools import i as _t_i
 from tools._common import (
     check_content_size as _check_content_size,
     check_pinned_quota as _check_pinned_quota,
@@ -1429,7 +1430,7 @@ async def breath_hook(request):
         # top 2 unresolved by score
         unresolved = [b for b in all_buckets
                       if not b["metadata"].get("resolved", False)
-                      and b["metadata"].get("type") not in ("permanent", "feel", "plan", "letter")
+                      and b["metadata"].get("type") not in ("permanent", "feel", "plan", "letter", "self")
                       and not b["metadata"].get("pinned")
                       and not b["metadata"].get("protected")]
         scored = sorted(unresolved, key=lambda b: decay_engine.calculate_score(b["metadata"]), reverse=True)
@@ -1494,6 +1495,33 @@ async def breath_hook(request):
         except Exception as e:
             logger.warning(f"breath_hook letter section failed: {e}")
 
+        # --- Append recent self-knowledge (I tool) ---
+        try:
+            self_buckets = [
+                b for b in all_buckets
+                if b["metadata"].get("type") == "self"
+                or "__self__" in (b["metadata"].get("tags") or [])
+            ]
+            if self_buckets:
+                self_buckets.sort(
+                    key=lambda b: b["metadata"].get("created", ""), reverse=True
+                )
+                self_lines = []
+                for b in self_buckets[:3]:
+                    meta = b["metadata"]
+                    ts = (meta.get("created") or "")[:10]
+                    tags_list = meta.get("tags") or []
+                    aspect_tag = next(
+                        (t.replace("aspect:", "") for t in tags_list if t.startswith("aspect:")), ""
+                    )
+                    aspect_label = f" [{aspect_tag}]" if aspect_tag else ""
+                    excerpt = strip_wikilinks(b["content"])[:300]
+                    self_lines.append(f"🪞{ts}{aspect_label}\n{excerpt}")
+                if self_lines:
+                    body_text += "\n\n=== I ===\n" + "\n\n".join(self_lines)
+        except Exception as e:
+            logger.warning(f"breath_hook I section failed: {e}")
+
         await _fire_webhook("breath_hook", {"surfaced": len(parts), "chars": len(body_text)})
         return PlainTextResponse(body_text)
     except Exception as e:
@@ -1512,7 +1540,7 @@ async def dream_hook(request):
         all_buckets = await bucket_mgr.list_all(include_archive=False)
         candidates = [
             b for b in all_buckets
-            if b["metadata"].get("type") not in ("permanent", "feel", "plan", "letter")
+            if b["metadata"].get("type") not in ("permanent", "feel", "plan", "letter", "self")
             and not b["metadata"].get("pinned", False)
             and not b["metadata"].get("protected", False)
         ]
@@ -1765,6 +1793,21 @@ async def letter_read(
     )
 
 
+@mcp_extra.tool()
+async def I(
+    content: Optional[str] = "",
+    aspect: Optional[str] = "",
+    read: Optional[bool] = False,
+    limit: Optional[int] = 20,
+) -> str:
+    """我写下关于我自己的认识。content=我观察到自己是什么/有什么规律/我在变成什么（空=进入读取模式）。aspect=维度:nature(本质)/values(我认为重要的)/patterns(规律)/limits(局限)/becoming(我在变成什么)/uncertainty(我不确定的)/stance(立场)（可选）。read=True=读取所有已积累的自我认知。limit=返回条数上限(默认20)。I 条目不参与普通 breath/dream，SessionStart 时自动带上最近 3 条。"""
+    return await _with_notice(
+        _t_i.dispatch(content=content, aspect=aspect, read=read, limit=limit),
+        op="I",
+        args={"content_len": len(content or ""), "aspect": aspect, "read": read, "limit": limit},
+    )
+
+
 @mcp.tool()
 async def dream(window_hours: Optional[int] = 48) -> str:
     """我做一次梦——读取最近 window_hours（默认 48h）内有变动的所有记忆桶,我自己沉进去想一遍。
@@ -1794,6 +1837,8 @@ async def api_buckets(request: Request) -> Response:
         result = []
         for b in all_buckets:
             meta = b.get("metadata", {})
+            if meta.get("deleted_at"):
+                continue
             result.append({
                 "id": b["id"],
                 "name": meta.get("name", b["id"]),
@@ -2405,6 +2450,37 @@ async def api_letter_delete(request: Request) -> Response:
         if ok:
             embedding_engine.delete_embedding(letter_id)
         return JSONResponse({"ok": ok, "deleted": ok})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@mcp.custom_route("/api/self", methods=["GET"])
+async def api_self(request: Request) -> Response:
+    """Return all self-type (I tool) entries, newest first."""
+    from starlette.responses import JSONResponse
+    err = _require_auth(request)
+    if err:
+        return err
+    try:
+        all_b = await bucket_mgr.list_all(include_archive=False)
+        self_buckets = [
+            b for b in all_b
+            if b["metadata"].get("type") == "self"
+            or "__self__" in (b["metadata"].get("tags") or [])
+        ]
+        self_buckets.sort(key=lambda b: b["metadata"].get("created", ""), reverse=True)
+        result = []
+        for b in self_buckets:
+            meta = b["metadata"]
+            tags = meta.get("tags") or []
+            aspect = next((t.replace("aspect:", "") for t in tags if t.startswith("aspect:")), "")
+            result.append({
+                "id": b["id"],
+                "content": b.get("content", ""),
+                "aspect": aspect,
+                "created": meta.get("created", ""),
+            })
+        return JSONResponse(result)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -3966,7 +4042,7 @@ async def api_bucket_edit(request: Request) -> Response:
         updates["content"] = new_content
 
     # type 字段直接改（不经 pinned 联动，调用方自己负责一致性）
-    _valid_types = {"dynamic", "permanent", "feel", "plan", "letter"}
+    _valid_types = {"dynamic", "permanent", "feel", "plan", "letter", "self"}
     if isinstance(body.get("type"), str) and body["type"] in _valid_types:
         if body["type"] != bucket["metadata"].get("type"):
             updates["type"] = body["type"]
