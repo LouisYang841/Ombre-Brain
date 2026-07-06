@@ -638,6 +638,7 @@ async def trace(
     weight: Optional[float] = -1,
     dont_surface: Optional[int] = -1,
     why_remembered: Optional[str] = "",
+    human: Optional[str] = "",
 ) -> str:
     """修改某条记忆的元数据或内容。resolved=1=标记已放下,沉底仅在关键词触发时返回;resolved=0=重新激活;pinned=1=标记永久核心(锁 importance=10),0=取消;digested=1=标记已消化,加速淡化;content=替换桶正文并重建 embedding;delete=True=彻底删除(不可恢复);status=plan 桶状态(active/resolved/abandoned);weight=plan 承诺重量 0.0-1.0;dont_surface=1=不再出现在 breath,0=恢复;why_remembered=更新记录原因。只传需要修改的字段,-1 或空串表示不改。"""
     return await _with_notice(
@@ -647,6 +648,7 @@ async def trace(
             tags=tags, resolved=resolved, pinned=pinned, digested=digested,
             content=content, delete=delete, status=status, weight=weight,
             dont_surface=dont_surface, why_remembered=why_remembered,
+            human=human,
         ),
         op="trace",
         args={
@@ -655,7 +657,7 @@ async def trace(
             "tags": tags, "resolved": resolved, "pinned": pinned, "digested": digested,
             "content_len": len(content or ""), "delete": delete, "status": status,
             "weight": weight, "dont_surface": dont_surface,
-            "why_len": len(why_remembered or ""),
+            "why_len": len(why_remembered or ""), "human": human,
         },
     )
 

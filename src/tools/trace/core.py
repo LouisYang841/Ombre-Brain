@@ -48,6 +48,7 @@ async def trace_core(
     weight: Optional[float] = -1,
     dont_surface: Optional[int] = -1,
     why_remembered: Optional[str] = "",
+    human: Optional[str] = "",
 ) -> str:
     if name is None: name = ""
     if domain is None: domain = ""
@@ -64,6 +65,7 @@ async def trace_core(
     if weight is None: weight = -1
     if dont_surface is None: dont_surface = -1
     if why_remembered is None: why_remembered = ""
+    if human is None: human = ""
     if rt.mark_op:
         rt.mark_op("trace")
     rt.record_v3_tool_event("trace", {
@@ -83,6 +85,7 @@ async def trace_core(
         "weight": weight,
         "dont_surface": dont_surface,
         "why_remembered_length": len(why_remembered or ""),
+        "human": human,
     })
 
     if not bucket_id or not bucket_id.strip():
@@ -145,8 +148,10 @@ async def trace_core(
     why_remembered = str(why_remembered).strip()
     if why_remembered == "\\clear":
         updates["why_remembered"] = ""
-    elif why_remembered:
+    if why_remembered:
         updates["why_remembered"] = why_remembered[:500]
+    if human:
+        updates["human"] = human.strip()[:32]
 
     if not updates:
         return "没有任何字段需要修改。"
