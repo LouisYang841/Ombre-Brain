@@ -34,6 +34,7 @@ async def store_pinned(
     valence: float,
     arousal: float,
     why_remembered: str,
+    human: str = "",
 ) -> str:
     try:
         analysis = await rt.dehydrator.analyze(content)
@@ -73,5 +74,6 @@ async def store_pinned(
         bucket_type="permanent",
         pinned=True,
         why_remembered=why_remembered,
+        human=human,
     )
     return f"📌钉选→{bucket_id} {','.join(str(d) for d in domain if d is not None)}"

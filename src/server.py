@@ -590,6 +590,7 @@ async def hold(
     valence: Optional[float] = -1,
     arousal: Optional[float] = -1,
     why_remembered: Optional[str] = "",
+    human: Optional[str] = "",
 ) -> str:
     """存入一条记忆(一句话级)。系统自动打标并尝试与近似的已有桶合并。tags 逗号分隔,importance 1-10。pinned=True=标记为永久核心,不衰减不合并。feel=True=存为感受类记忆(不参与普通浮现,仅通过 breath(domain=\"feel\") 读取)。source_bucket=正在消化的原始记忆桶 ID,会被标为已消化以加速淡化。why_remembered=记录原因(可选,自由文本,仅用于展示不计分)。"""
     return await _with_notice(
@@ -597,24 +598,25 @@ async def hold(
             content=content, tags=tags, importance=importance,
             pinned=pinned, feel=feel, source_bucket=source_bucket,
             valence=valence, arousal=arousal, why_remembered=why_remembered,
+            human=human,
         ),
         op="hold",
         args={
             "content_len": len(content or ""), "tags": tags,
             "importance": importance, "pinned": pinned, "feel": feel,
             "source_bucket": source_bucket, "valence": valence, "arousal": arousal,
-            "why_len": len(why_remembered or ""),
+            "why_len": len(why_remembered or ""), "human": human,
         },
     )
 
 
 @mcp.tool()
-async def grow(content: str) -> str:
+async def grow(content: str, human: Optional[str] = "") -> str:
     """整理一段长文本(如一天的记录/一段日记/一篇总结)存入记忆,系统拆分为 2~6 条独立事件桶并各自尝试合并。短内容(<30 字)走 hold 单条快速路径,不强行拆分。"""
     return await _with_notice(
-        _t_grow.dispatch(content),
+        _t_grow.dispatch(content, human=human or ""),
         op="grow",
-        args={"content_len": len(content or "")},
+        args={"content_len": len(content or ""), "human": human},
     )
 
 

@@ -37,6 +37,7 @@ async def store_core(
     valence: float,
     arousal: float,
     why_remembered: str,
+    human: str = "",
 ) -> str:
     try:
         analysis = await rt.dehydrator.analyze(content)
@@ -67,6 +68,7 @@ async def store_core(
         raw_merge=True,
         why_remembered=why_remembered,
         source_tool="hold",
+        human=human,
     )
 
     action = "合并→" if is_merged else "新建→"

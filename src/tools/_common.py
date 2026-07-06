@@ -341,6 +341,7 @@ async def merge_or_create(
     why_remembered: str = "",
     source_tool: str = "",
     grow_batch_id: str = "",
+    human: str = "",
 ) -> Tuple[str, bool, str]:
     """
     检查是否有相似桶可合并，有则合并，无则新建。返回 (桶ID或名称, 是否合并, embed警告信息)。
@@ -362,7 +363,7 @@ async def merge_or_create(
             content=content, tags=tags, importance=importance, domain=domain,
             valence=valence, arousal=arousal, name=name, raw_merge=raw_merge,
             why_remembered=why_remembered, source_tool=source_tool,
-            grow_batch_id=grow_batch_id,
+            grow_batch_id=grow_batch_id, human=human,
         )
 
 
@@ -378,6 +379,7 @@ async def _merge_or_create_inner(
     why_remembered: str = "",
     source_tool: str = "",
     grow_batch_id: str = "",
+    human: str = "",
 ) -> Tuple[str, bool, str]:
     """实际的 search→merge/create 逻辑，由 merge_or_create 在 Lock 保护下调用。"""
     try:
@@ -449,6 +451,7 @@ async def _merge_or_create_inner(
         why_remembered=why_remembered,
         source_tool=source_tool,
         grow_batch_id=grow_batch_id,
+        human=human,
     )
     # iter 2.1+ 起 create() 内部已调用 _sync_embedding，此处无需重复生成。
     # 只需从 embedding_engine 探测上次是否成功（检查 db 中是否有该 id）。

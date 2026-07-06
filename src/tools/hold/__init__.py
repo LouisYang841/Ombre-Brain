@@ -40,6 +40,7 @@ async def dispatch(
     valence: Optional[float] = -1,
     arousal: Optional[float] = -1,
     why_remembered: Optional[str] = "",
+    human: Optional[str] = "",
 ) -> str:
     if tags is None: tags = ""
     if importance is None: importance = 5
@@ -49,6 +50,7 @@ async def dispatch(
     if valence is None: valence = -1
     if arousal is None: arousal = -1
     if why_remembered is None: why_remembered = ""
+    if human is None: human = ""
     why_remembered = str(why_remembered).strip()[:500]
     if rt.mark_op:
         rt.mark_op("hold")
@@ -125,6 +127,7 @@ async def dispatch(
             arousal=arousal,
             source_bucket=source_bucket,
             why_remembered=why_remembered,
+            human=human,
         )
         return result
 
@@ -135,6 +138,7 @@ async def dispatch(
             valence=valence,
             arousal=arousal,
             why_remembered=why_remembered,
+            human=human,
         )
         return result
 
@@ -145,5 +149,6 @@ async def dispatch(
         valence=valence,
         arousal=arousal,
         why_remembered=why_remembered,
+        human=human,
     )
     return result

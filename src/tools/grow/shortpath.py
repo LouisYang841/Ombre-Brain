@@ -27,7 +27,7 @@ from .. import _runtime as rt
 from .._common import merge_or_create, check_duplicate_for, check_plan_resolution
 
 
-async def grow_shortpath(content: str) -> str:
+async def grow_shortpath(content: str, human: str = "") -> str:
     rt.logger.info(f"grow short-content fast path: {len(content.strip())} chars")
     try:
         analysis = await rt.dehydrator.analyze(content)
@@ -43,13 +43,14 @@ async def grow_shortpath(content: str) -> str:
         content=content.strip(),
         tags=analysis.get("tags", []),
         importance=importance,
-        domain=analysis.get("domain", ["未分类"]),
+        domain=analysis.get("domain", ["未分類"]),
         valence=analysis.get("valence", 0.5),
         arousal=analysis.get("arousal", 0.3),
         name=analysis.get("suggested_name", ""),
         raw_merge=True,
         source_tool="grow",
         grow_batch_id=batch_id,
+        human=human,
     )
     action = "合并" if is_merged else "新建"
     asyncio.create_task(check_plan_resolution(content, source_bucket_id=result_name))

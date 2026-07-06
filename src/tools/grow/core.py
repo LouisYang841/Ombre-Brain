@@ -36,7 +36,7 @@ from .._common import (
 )
 
 
-async def grow_core(content: str) -> str:
+async def grow_core(content: str, human: str = "") -> str:
     try:
         items = await rt.dehydrator.digest(content)
     except Exception as e:
@@ -74,6 +74,7 @@ async def grow_core(content: str) -> str:
                 name=item.get("name", ""),
                 source_tool="grow",
                 grow_batch_id=batch_id,
+                human=human,
             )
             if embed_warn and embed_warn not in embed_warnings:
                 embed_warnings.append(embed_warn)

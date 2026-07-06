@@ -114,6 +114,7 @@ _SOURCE_TOOL_MAX = 32
 _GROW_BATCH_ID_MAX = 64
 _WHY_REMEMBERED_MAX = 500
 _TRIGGERED_BY_MAX = 64
+_HUMAN_MAX = 32
 
 # --- _time_ripple：时间涾漪 ---
 _RIPPLE_HOURS = 48.0       # ±该小时内的桶被轻微唤醒
@@ -326,6 +327,7 @@ class BucketManager:
         weight: Optional[float] = None,
         source_tool: str = "",
         grow_batch_id: str = "",
+        human: str = "",
         bucket_id_override: str = "",
     ) -> str:
         """
@@ -433,6 +435,8 @@ class BucketManager:
         # triggered_by = 触发这条 feel 的源 bucket_id。1.9 会做 UI 联动。
         if triggered_by:
             metadata["triggered_by"] = str(triggered_by).strip()[:_TRIGGERED_BY_MAX]
+        if human:
+            metadata["human"] = str(human).strip()[:_HUMAN_MAX]
         # --- iter 1.8: plan 的「承诺重量」0.0-1.0，与 importance 不同 ---
         # importance = 这件事多重要；weight = 这件事压在我心头多重。
         if bucket_type == "plan" and weight is not None:
